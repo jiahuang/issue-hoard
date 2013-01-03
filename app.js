@@ -5,8 +5,6 @@
 
 var ISSUES = require('./issues')
   , express = require('express')
-  // , routes = require('./routes')
-  // , user = require('./routes/user')
   , http = require('http')
   , path = require('path')
   , oauth = require("oauth")
@@ -37,25 +35,24 @@ app.configure('development', function(){
 app.use(express.session({
   secret: process.env.SECRET,
   cookie: {
-    domain: "peaceful-everglades-2301.herokuapp.com"
+    domain: process.env.HOST_URL
   }
 }));
 
-// app.get('/', routes.index);
-// app.get('/users', user.list);
 var github = rem.load('github', 3, {
   key: process.env.GH_KEY,
   secret: process.env.GH_SECRET
 });
-oauth = rem.oauth(github, "http://peaceful-everglades-2301.herokuapp.com/oauth/callback/");
+
+oauth = rem.oauth(github, "http://"+process.env.HOST_URL+"/oauth/callback/");
 
 // The oauth middleware intercepts the callback url that we set when we
 // created the oauth middleware.
 app.use(oauth.middleware(function (req, res, next) {
   console.log("User is now authenticated.");
-  console.log(req.user);
   req.user('user').get(function (err, json) {
     req.session.userinfo = json;
+    console.log(req.session.oauthAccessToken);
     res.redirect('/');
   });
 }));
