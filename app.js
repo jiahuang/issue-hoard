@@ -18,6 +18,7 @@ var ISSUES = require('./issues')
 var app = express();
 
 app.configure(function(){
+  app.use(express.cookieParser());
   app.set('port', process.env.PORT || 3000);
   app.set('views', __dirname + '/views');
   app.set('view engine', 'ejs');
@@ -52,10 +53,10 @@ oauth = rem.oauth(github, "http://peaceful-everglades-2301.herokuapp.com/oauth/c
 // created the oauth middleware.
 app.use(oauth.middleware(function (req, res, next) {
   console.log("User is now authenticated.");
-  // req.user('user').get(function (err, json) {
-  //   req.session.userinfo = json;
-  //   res.redirect('/');
-  // });
+  req.user('user').get(function (err, json) {
+    req.session.userinfo = json;
+    res.redirect('/');
+  });
 }));
 
 app.get('/', function(req, res) {
