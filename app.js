@@ -115,25 +115,23 @@ app.get('/login', function (req, res) {
   });
 });
 
-app.get('/users/:user/:repo/push', function (req, res) {
+app.post('/users/:user/:repo/push', function (req, res) {
   // find that user's oauth token
   cols.users.findOne({
     user: req.params.user
-  }, function (err, user) {
-    var authObj = oauth.restore({oauthAccessToken: user.token});
+  }, function (err, userObj) {
+    var authObj = oauth.restore({oauthAccessToken: userObj.token});
     // req.session = user;
-    // get the commit diff 
-    authObj('users', user, 'repos').get(function (err, repos) { 
-      console.log("repos", repos);
-      // repos.forEach(function (repo, index) {
-        // console.log(repo.name);
-        
-      // });
+    // get the commit diff
+    console.log("req body", req.body);
+    console.log("req commits", req.body.commits);
+
+    authObj('repos', userObj.user, repo, 'compare', 
+      'master...develop').get(function (err, json) { 
+      console.log("diff", json);
     });
 
-
   });
-  // get the commit diff
 
   // check the commit diff for ISSUES
 
