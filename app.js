@@ -33,6 +33,13 @@ app.configure('development', function(){
   app.use(express.errorHandler());
 });
 
+app.use(express.session({
+  secret: process.env.SECRET,
+  cookie: {
+    domain: "peaceful-everglades-2301.herokuapp.com"
+  }
+}));
+
 // app.get('/', routes.index);
 // app.get('/users', user.list);
 var github = rem.load('github', 3, {
