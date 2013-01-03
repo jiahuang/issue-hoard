@@ -1,0 +1,19 @@
+{
+  "name": "github-todo",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "node app"
+  },
+  "dependencies": {
+    "express": "3.0.0rc4",
+    "ejs": "0.8.3",
+    "rem": "~0.5.15",
+    "oauth": "~0.9.8",
+    "mongodb": "~1.2.2",
+  },
+  "engines": {
+    "node": "0.8.x",
+    "npm": "1.1.x"
+  }
+}
