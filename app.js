@@ -3,8 +3,7 @@
  * Module dependencies.
  */
 
-var CONFIG = require('./config')
-  , ISSUES = require('./issues')
+var ISSUES = require('./issues')
   , express = require('express')
   // , routes = require('./routes')
   // , user = require('./routes/user')
@@ -40,7 +39,7 @@ var github = rem.load('github', 3, {
   key: process.env.GH_KEY,
   secret: process.env.GH_SECRET
 });
-oauth = rem.oauth(github, "http://answeredthis.com/oauth/callback/");
+oauth = rem.oauth(github, "http://peaceful-everglades-2301.herokuapp.com/oauth/callback/");
 
 // The oauth middleware intercepts the callback url that we set when we
 // created the oauth middleware.
@@ -51,6 +50,12 @@ app.use(oauth.middleware(function (req, res, next) {
     res.redirect('/');
   })
 }));
+
+app.get('/', function(req, res) {
+  var user = null;
+
+  return res.send('Hi there', 404);
+});
 
 app.get('/login', function (req, res) {
   oauth.startSession(req, {
