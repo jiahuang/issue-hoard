@@ -53,6 +53,7 @@ oauth = rem.oauth(github, "http://peaceful-everglades-2301.herokuapp.com/oauth/c
 // created the oauth middleware.
 app.use(oauth.middleware(function (req, res, next) {
   console.log("User is now authenticated.");
+  console.log(req.user);
   req.user('user').get(function (err, json) {
     req.session.userinfo = json;
     res.redirect('/');
@@ -71,6 +72,10 @@ app.get('/login', function (req, res) {
   }, function (url) {
     res.redirect(url);
   });
+});
+
+app.get('/push', function (req, res) {
+
 });
 
 // Start server.
