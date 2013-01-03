@@ -115,7 +115,24 @@ app.get('/login', function (req, res) {
   });
 });
 
-app.post('/users/:user/:repo/push', function (req, res) {
+app.get('/users/:user/:repo/push', function (req, res) {
+  // find that user's oauth token
+  cols.users.findOne({
+    user: req.params.user
+  }, function (err, user) {
+    var authObj = oauth.restore({oauthAccessToken: user.token});
+    // req.session = user;
+    // get the commit diff 
+    authObj('users', user, 'repos').get(function (err, repos) { 
+      console.log("repos", repos);
+      // repos.forEach(function (repo, index) {
+        // console.log(repo.name);
+        
+      // });
+    });
+
+
+  });
   // get the commit diff
 
   // check the commit diff for ISSUES
@@ -127,6 +144,7 @@ app.post('/users/:user/:repo/push', function (req, res) {
 
   // if it's deleted, close the issue
   console.log(req.params.user, req.params.repo, req.body);
+  return res.send("hit push endpoint");
 });
 
 var mongodb, cols = {};
