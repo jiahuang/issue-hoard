@@ -51,27 +51,63 @@ oauth = rem.oauth(github, "http://"+process.env.HOST_URL+"/oauth/callback/");
 app.use(oauth.middleware(function (req, res, next) {
   console.log("User is now authenticated.");
   req.user('user').get(function (err, json) {
+
     req.session.userinfo = json;
     console.log(req.session.oauthAccessToken);
+
     res.redirect('/');
   });
 }));
 
 app.get('/', function(req, res) {
-  var user = null;
+  console.log(req);
 
-  return res.send('Hi there', 404);
+  var user = null;
+  github('users', req.session).get(function (err, json) {
+    if (err || !json) {
+      return res.send("well that didn't work", 404);
+    }
+    // console.log("got user", json);
+    user = oauth.session(req);
+    if (!user)
+    return res.send('who are you?', 200);
+
+    // get a list of all the public repos
+    user('users', 'jiahuang', 'repos').get(function (err, repos) { 
+      // console.log(repos);
+      // repos.forEach(function (index, repo) {
+      //   console.log(repo.name);
+      //   repo.name;
+      //   user('repos', 'jiahuang', repo.name).post({
+      //     name: "web",
+      //     active: "true",
+      //     events: ["push"],
+      //     config: {
+      //       url: "http://peaceful-everglades-2301.herokuapp.com/jiahuang/"+repo.name+"/push",
+      //       content_type: "json"
+      //     }
+      //   }, function (err, json) {
+      //     if (err) return console.error('Error creating push webhook:', err);
+      //     console.log(json);
+      //   });
+      // });
+
+      return res.send('Hi there', 200);
+
+    }); 
+
+  });  
 });
 
 app.get('/login', function (req, res) {
   oauth.startSession(req, {
-    scope: ['gist']
+    scope: ['']
   }, function (url) {
     res.redirect(url);
   });
 });
 
-app.get('/push', function (req, res) {
+app.post('/push', function (req, res) {
 
 });
 
