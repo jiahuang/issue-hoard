@@ -116,7 +116,7 @@ app.get('/login', function (req, res) {
   });
 });
 
-// TODO (clean up code @tcr): testing this updater 
+// TODO (clean up code @jiahuang): testing this updater 
 app.post('/users/:user/:repo/push', function (req, res) {
   // find that user's oauth token
   cols.users.findOne({
@@ -157,14 +157,14 @@ app.post('/users/:user/:repo/push', function (req, res) {
               console.log("issues", diff_issues);
               diff_issues.forEach(function (diff_issue) {
                 var similar_issue = curr_issues.filter(function (curr_issue){
-                  if (curr_issue.similarTo(similar_issue))
+                  if (diff_issue.similarTo(curr_issue))
                     return curr_issue;
                 });
                 if (similar_issue.length > 0) {
                   // we have multiple issues with the same name or this isn't changing anything about the issue
                   // uhhh no clue which one to edit, let's just skip it
-                  if (similar_issue.length > 1 || similar_issue[0].equals(diff_issue))
-                    return;
+                  if (similar_issue.length > 1 || diff_issue.equals(similar_issue[0]))
+                    return console.log("donno what to do with this issue", diff_issue);
                   
                   // otherwise it's a patch of the current issue
                   var curr_labels = similar_issue[0].labels.map(function (label) {
