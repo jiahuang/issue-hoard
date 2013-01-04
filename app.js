@@ -116,7 +116,7 @@ app.get('/login', function (req, res) {
   });
 });
 
-// TODO (clean up code): code on /users/:user/:repo/push needs to be cleaned 
+// TODO (clean up code @tcr): testing this updater 
 app.post('/users/:user/:repo/push', function (req, res) {
   // find that user's oauth token
   cols.users.findOne({
