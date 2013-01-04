@@ -116,7 +116,7 @@ app.get('/login', function (req, res) {
   });
 });
 
-// TODO (clean up code @jiahuang): testing this updater 
+// TODO (clean up code @slacs): testing this updater with slacs
 app.post('/users/:user/:repo/push', function (req, res) {
   // find that user's oauth token
   cols.users.findOne({
@@ -136,6 +136,7 @@ app.post('/users/:user/:repo/push', function (req, res) {
     authObj('repos', req.params.user, req.params.repo, 
       'issues').get(function (err, curr_issues) {
 
+      console.log("current issues", curr_issues);
       // var lastCommit = commits.length;
       commits.forEach(function (commit, index) {
         // console.log('commit index', index, lastCommit);
