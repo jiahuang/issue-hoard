@@ -35,42 +35,43 @@ DiffParser.prototype.parseLine = function (line) {
     title: issueName, 
     assigned: assignee, 
     comment: comment,
-    type: noDiff.exec(line)[0][0] == '+'? 'opened': 'closed'
+    status: noDiff.exec(line)[0][0] == '+'? 'open': 'closed'
   });
 }
 
 DiffParser.prototype.parseLines = function (input) {
   var that = this;
   var parsedIssues = [];
+  // console.log(input);
   input = input.split('\n');
 
   input.forEach(function (line, index) {
     var parsedLine = that.parseLine(line);
     if (parsedLine) {
-      // check for the opposite opened/closed
+      // check for the opposite open/closed
       var filtered = null;
       // if there has been an opposing edit, 
       // remove it and make this an edit
-      if (parsedLine.type == 'opened') {
+      if (parsedLine.status == 'open') {
         filtered = issueFilter(parsedIssues, parsedLine, 'closed');
       } else {
-        filtered = issueFilter(parsedIssues, parsedLine, 'opened');
+        filtered = issueFilter(parsedIssues, parsedLine, 'open');
       }
       
       if (filtered.removed) {
         parsedIssues = filtered.array;
-        parsedLine.type = 'edit';
+        parsedLine.status = 'open';
       }
 
       parsedIssues.push(parsedLine);
     }
   });
 
-  function issueFilter(array, parsedItem, type) {
+  function issueFilter(array, parsedItem, status) {
     var removedOne = false;
     return { array: array.filter(function (parsedIssue){
       if (parsedIssue.title != parsedItem.title && 
-        parsedIssue.type != type || removedOne) {
+        parsedIssue.status != status || removedOne) {
         return parsedIssue;
       } else {
         removedOne = true;
