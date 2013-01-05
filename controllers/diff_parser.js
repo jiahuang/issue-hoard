@@ -2,6 +2,7 @@ var DiffIssue = require('./diff_issue');
 
 var DiffParser = function (issues) {
   this.issues = issues;
+  this.parsed = [];
 }
 
 DiffParser.prototype.parseLine = function (line) {
@@ -33,8 +34,8 @@ DiffParser.prototype.parseLine = function (line) {
   return new DiffIssue({ 
     label: issueType, 
     title: issueName, 
-    assigned: assignee, 
-    comment: comment,
+    asignee: assignee, 
+    body: comment,
     status: noDiff.exec(line)[0][0] == '+'? 'open': 'closed'
   });
 }
