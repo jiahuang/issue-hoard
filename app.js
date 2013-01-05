@@ -82,30 +82,15 @@ app.get('/', function (req, res) {
     return res.send('who are you? <a href="/login/">Better login buddy</a>', 404);
   }
 
-  // get a list of all the public repos
-  // user('users', req.session.userinfo.login, 'repos').get(function (err, repos) { 
-  //   // console.log(repos);
-  //   repos.forEach(function (repo, index) {
-  //     console.log(repo.name);
-  //     if (repo.name == 'github-todo') { // just for testing
-  //       user('repos', 'jiahuang', repo.name, 'hooks').post({
-  //         name: "web",
-  //         active: "true",
-  //         events: ["push"],
-  //         config: {
-  //           url: "http://peaceful-everglades-2301.herokuapp.com/users/jiahuang/"+repo.name+"/push",
-  //           content_type: "json"
-  //         }
-  //       }, function (err, json) {
-  //         if (err) return console.error('Error creating push webhook:', err, json);
-  //         console.log(json);
-  //       });
-  //     }
-  //   });
-
-    return res.send('Hi there ' + req.session.userinfo.login, 200);
-
-  // });
+  var github_repo = new GithubRepo(user, req.session.userinfo.login);
+  
+  github_repo.getPublicRepos(function (repo) {
+    repos.forEach(function (repo, index) {
+      // github_repo.createWebHook(repo.name, process.env.url+'/users/'+req.session.userinfo.login+'/push');
+    });
+  });
+  
+  return res.send('Hi there ' + req.session.userinfo.login, 200);
 });
 
 app.get('/login', function (req, res) {
@@ -133,7 +118,6 @@ app.post('/users/:user/:repo/push', function (req, res) {
       console.log("size of the push", body);
     } 
 
-    // console.log(commits);
     if (!commits || commits.length < 1)
       return res.send('Post body did not contain a list of commits. Is this webhook set up correctly?');
     
@@ -162,16 +146,11 @@ app.post('/users/:user/:repo/push', function (req, res) {
             if (isSimilar.multiple) // diff_issue.equals(similar_issue[0])
               return console.log("donno what to do with this issue", diff_issue);
             
-            // otherwise it's a patch/new comment of the current issue
-            var curr_labels = similar_issue[0].labels.map(function (label) {
-              return label.name;
-            });
-            similar_issue[0].labels = curr_labels;
-            console.log("author", curr_commit.author);
+            similar_issue[0].labels = similar_issue[0].labels.map(function (label) { return label.name; });
 
             // if there is a different assignee, label, or status, patch the issue
             if (diff_issue.isIssueUpdate(similar_issue[0])) {
-              github_issue.updateIssue(diff_issue.convertToPatchIssue(curr_labels), similar_issue[0]);
+              github_issue.updateIssue(diff_issue.convertToPatchIssue(similar_issue[0].labels), similar_issue[0]);
             }
 
             // add it in as a new comment if previous comments dont have the same body

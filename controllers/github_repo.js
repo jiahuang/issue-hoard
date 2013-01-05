@@ -26,4 +26,38 @@ GithubRepo.prototype.getCommitDiffs = function(commits, next){
   });
 }
 
+GithubRepo.prototype.getPublicRepos = function (next) {
+  this.authObj('users', this.user, 'repos').get(function (err, repos) { 
+    if (err)
+      return console.log("Failed to get public repos of", err, repos);
+
+    if (typeof(next) == 'function') next(repos);
+  });
+}
+
+GithubRepo.prototype.createWebHook = function (repoName, url) {
+  // check current webhooks, if it's not already there, create it
+  this.authObj('repos', this.user, repoName, 'hooks').get(
+    function (err, hooks){
+    var hook_filter = hooks.filter(function (hook) { 
+      if (new String(hook.url).toUpperCase() == url.toUpperCase())
+        return hook.url;
+    });
+    
+    if (hook_filter.length < 1) {
+      this.authObj('repos', this.user, repoName, 'hooks').post({
+        name: "web",
+        active: "true",
+        events: ["push"],
+        config: {
+          url: url,
+          content_type: "json"
+        }
+      }, function (err, json) {
+        if (err) return console.error('Error creating push webhook:', err, json);
+      });
+    }
+  });
+}
+
 module.exports = GithubRepo;
