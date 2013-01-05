@@ -21,12 +21,16 @@ DiffIssue.prototype.equals = function (diffObj) {
   }
 }
 
-DiffIssue.prototype.similarTo = function (diffObj) {
-  try {
-    if (diffObj.title == this.title) return true;
-  } catch (err) {
-    return false;
-  }
+DiffIssue.prototype.isSimilarTo = function (issues) {
+  var similar_issues = issues.filter(function (curr_issue){
+    if (diff_issue.title.toUpper() == new String(curr_issue.title).toUpper())
+      return curr_issue;
+  });
+  if (similar_issues.length > 1)
+    return {multiple: true, similar: true};
+  else if (similar_issues.length == 1)
+    return {multiple: false, similar: true};
+  return { multiple:false, similar: false};
 }
 
 DiffIssue.prototype.isOpen = function () {

@@ -11,10 +11,12 @@ var ISSUES = require('./issues')
   , mongo = require('mongodb'), ObjectID = mongo.ObjectID
   , rem = require('rem')
   , https = require('https')
-  , DIFF_PARSER = require('./controllers/diff_parser');
+  , DIFF_PARSER = require('./controllers/diff_parser')
+  , GithubIssue = require('./controllers/github_issue')
+  , GithubRepo = require('./controllers/github_repo');
 
-var DIFF_PARSER = new DIFF_PARSER(ISSUES);
 var app = express();
+var DIFF_PARSER = new DIFF_PARSER(ISSUES);
 
 app.configure(function(){
   app.use(express.cookieParser());
@@ -55,7 +57,7 @@ app.use(oauth.middleware(function (req, res, next) {
   user('user').get(function (err, json) {
 
     req.session.userinfo = json;
-    console.log(req.session['github.com:oauthAccessToken']);
+    // console.log(req.session['github.com:oauthAccessToken']);
     cols.users.update({
       user: req.session.userinfo.login
     }, {
@@ -70,7 +72,6 @@ app.use(oauth.middleware(function (req, res, next) {
 
       return res.redirect('/');
     });
-
   });
 }));
 
@@ -116,7 +117,6 @@ app.get('/login', function (req, res) {
   });
 });
 
-// TODO (clean up code @slacs): testing this updater with slacs
 app.post('/users/:user/:repo/push', function (req, res) {
   // find that user's oauth token
   cols.users.findOne({
@@ -139,73 +139,47 @@ app.post('/users/:user/:repo/push', function (req, res) {
     
     var authObj = oauth.restore({oauthAccessToken: userObj.token});
     var github_issue = new GithubIssue(authObj, req.params.user, req.params.repo);
+    var github_repo = new GithubRepo(authObj, req.params.user, req.params.repo);
     var all_issues = [];
+
     // get the list of all issues
-    authObj('repos', req.params.user, req.params.repo, 
-      'issues').get(function (err, curr_issues) {
+    github_issue.getAllIssues(function (curr_issues) {
+      // get the list of all commit diffs
+      github_repo.getCommitDiffs(function (diff) {
+        console.log("repo commit compare: "+curr_commit.parents[0].sha+'...'+curr_commit.sha );
 
-      // console.log("current issues", curr_issues);
-      // var lastCommit = commits.length;
-      commits.forEach(function (commit, index) {
-        // console.log('commit index', index, lastCommit);
-        // if (index == lastCommit -1)
-          // res.send('Made the following issue updates to '+
-            // req.params.user+"'s "+req.params.repo+' repo', all_issues);
-        
-        // get this entire commit
-        // GET /repos/:owner/:repo/git/commits/:sha
-        authObj('repos', req.params.user, req.params.repo, 'git'
-          , 'commits', commit.id).get(function (err, curr_commit) {
-          if (err)
-            return console.log("Failed to get repos/"+req.params.user+"/"+req.params.repo+'/git/commits/'+commit.id);
-          console.log("repo");
+        diff.files.forEach(function (file){
+          all_issues = DIFF_PARSER.parseLines(file.patch, all_issues);
+        });
 
-            // get the diff between this commit and its parent
-          authObj('repos', req.params.user, req.params.repo, 'compare', 
-            curr_commit.parents[0].sha+'...'+curr_commit.sha).get(function (err, diff) { 
-            if (err)
-              return console.log("Failed to get repos/"+req.params.user+"/"+req.params.repo+'/compare/'+curr_commit.parents[0].sha+'...'+curr_commit.sha);
-          
-            console.log("repo commit compare: "+curr_commit.parents[0].sha+'...'+curr_commit.sha );
+        all_issues.forEach(function (diff_issue) {
+          var isSimilar = diff_issue.isSimilarTo(curr_issues);
+          diff_issue.setAssignee(curr_commit.author.name);
 
-            diff.files.forEach(function (file){
-              var diff_issues = DIFF_PARSER.parseLines(file.patch);
-              console.log("issues", diff_issues);
-              diff_issues.forEach(function (diff_issue) {
-                var similar_issue = curr_issues.filter(function (curr_issue){
-                  if (diff_issue.similarTo(curr_issue))
-                    return curr_issue;
-                });
-
-                diff_issue.setAssignee(curr_commit.author.name);
-
-                if (similar_issue.length > 0) {
-                  // we have multiple issues with the same name or this isn't changing anything about the issue
-                  // uhhh no clue which one to edit, let's just skip it
-                  if (similar_issue.length > 1 || diff_issue.equals(similar_issue[0]))
-                    return console.log("donno what to do with this issue", diff_issue);
-                  
-                  // otherwise it's a patch/new comment of the current issue
-                  var curr_labels = similar_issue[0].labels.map(function (label) {
-                    return label.name;
-                  });
-                  similar_issue[0].labels = curr_labels;
-                  console.log("author", curr_commit.author);
-
-                  // if there is a different assignee, label, or status, patch the issue
-                  if (diff_issue.isIssueUpdate(similar_issue[0])) {
-                    github_issue.updateIssue(diff_issue.convertToPatchIssue(curr_labels), similar_issue[0]);
-                  }
-
-                  // add it in as a new comment if previous comments dont have the same body
-                  github_issue.addComment(diff_issue.convertToComment(), similar_issue[0]);
-
-                } else if (diff_issue.isOpen()) {
-                  github_issue.create_issue(diff_issue.convertToNewIssue());
-                } 
-              });
+          if (isSimilar.similar) {
+            // we have multiple issues with the same name or this isn't changing anything about the issue
+            // uhhh no clue which one to edit, let's just skip it
+            if (isSimilar.multiple) // diff_issue.equals(similar_issue[0])
+              return console.log("donno what to do with this issue", diff_issue);
+            
+            // otherwise it's a patch/new comment of the current issue
+            var curr_labels = similar_issue[0].labels.map(function (label) {
+              return label.name;
             });
-          });
+            similar_issue[0].labels = curr_labels;
+            console.log("author", curr_commit.author);
+
+            // if there is a different assignee, label, or status, patch the issue
+            if (diff_issue.isIssueUpdate(similar_issue[0])) {
+              github_issue.updateIssue(diff_issue.convertToPatchIssue(curr_labels), similar_issue[0]);
+            }
+
+            // add it in as a new comment if previous comments dont have the same body
+            github_issue.addComment(diff_issue.convertToComment(), similar_issue[0]);
+
+          } else if (diff_issue.isOpen()) {
+            github_issue.create_issue(diff_issue.convertToNewIssue());
+          } 
         });
       });
     });

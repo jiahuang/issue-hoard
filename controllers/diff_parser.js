@@ -40,9 +40,12 @@ DiffParser.prototype.parseLine = function (line) {
   });
 }
 
-DiffParser.prototype.parseLines = function (input) {
+DiffParser.prototype.parseLines = function (input, startingIssues) {
+  if (!startingIssues) 
+    startingIssues = [];
+
   var that = this;
-  var parsedIssues = [];
+  var parsedIssues = startingIssues;
   // console.log(input);
   input = input.split('\n');
 

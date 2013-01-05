@@ -55,3 +55,10 @@ GithubIssue.prototype.addComment = function (comment, issueNumber) {
   });
 };
 
+GithubIssue.prototype.getAllIssues = function (next) {
+  this.authObj('repos', this.user, this.repo, 'issues').get(function (err, issues) {
+    if (typeof(next) == 'function') next(issues);
+  });
+};
+
+module.exports = GithubIssue;
