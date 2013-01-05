@@ -124,19 +124,27 @@ app.post('/users/:user/:repo/push', function (req, res) {
   }, function (err, userObj) {
     if (err)
       return res.send('User '+req.params.user+' is not authenticated with this service.');
-    
-    var commits = req.body.commits; 
+
+    var commits = req.body.commits;
+    if (!commits && req.body.payload != null) {
+      // weird github issue? payload is sent as a string
+      var body = JSON.parse(req.body.payload);
+      commits = body.commits;
+      console.log("size of the push", body);
+    } 
+
     // console.log(commits);
     if (!commits || commits.length < 1)
       return res.send('Post body did not contain a list of commits. Is this webhook set up correctly?');
     
     var authObj = oauth.restore({oauthAccessToken: userObj.token});
+    var github_issue = new GithubIssue(authObj, req.params.user, req.params.repo);
     var all_issues = [];
     // get the list of all issues
     authObj('repos', req.params.user, req.params.repo, 
       'issues').get(function (err, curr_issues) {
 
-      console.log("current issues", curr_issues);
+      // console.log("current issues", curr_issues);
       // var lastCommit = commits.length;
       commits.forEach(function (commit, index) {
         // console.log('commit index', index, lastCommit);
@@ -148,11 +156,18 @@ app.post('/users/:user/:repo/push', function (req, res) {
         // GET /repos/:owner/:repo/git/commits/:sha
         authObj('repos', req.params.user, req.params.repo, 'git'
           , 'commits', commit.id).get(function (err, curr_commit) {
+          if (err)
+            return console.log("Failed to get repos/"+req.params.user+"/"+req.params.repo+'/git/commits/'+commit.id);
+          console.log("repo");
+
             // get the diff between this commit and its parent
           authObj('repos', req.params.user, req.params.repo, 'compare', 
             curr_commit.parents[0].sha+'...'+curr_commit.sha).get(function (err, diff) { 
-            // console.log("diff", json.diff_url);
-            // console.log("diff files", diff.files);
+            if (err)
+              return console.log("Failed to get repos/"+req.params.user+"/"+req.params.repo+'/compare/'+curr_commit.parents[0].sha+'...'+curr_commit.sha);
+          
+            console.log("repo commit compare: "+curr_commit.parents[0].sha+'...'+curr_commit.sha );
+
             diff.files.forEach(function (file){
               var diff_issues = DIFF_PARSER.parseLines(file.patch);
               console.log("issues", diff_issues);
@@ -161,53 +176,33 @@ app.post('/users/:user/:repo/push', function (req, res) {
                   if (diff_issue.similarTo(curr_issue))
                     return curr_issue;
                 });
+
+                diff_issue.setAssignee(curr_commit.author.name);
+
                 if (similar_issue.length > 0) {
                   // we have multiple issues with the same name or this isn't changing anything about the issue
                   // uhhh no clue which one to edit, let's just skip it
                   if (similar_issue.length > 1 || diff_issue.equals(similar_issue[0]))
                     return console.log("donno what to do with this issue", diff_issue);
                   
-                  // otherwise it's a patch of the current issue
+                  // otherwise it's a patch/new comment of the current issue
                   var curr_labels = similar_issue[0].labels.map(function (label) {
                     return label.name;
                   });
-                  if (curr_labels.indexOf(diff_issue.label) == -1) {
-                    curr_labels.push(diff_issue.label);
+                  similar_issue[0].labels = curr_labels;
+                  console.log("author", curr_commit.author);
+
+                  // if there is a different assignee, label, or status, patch the issue
+                  if (diff_issue.isIssueUpdate(similar_issue[0])) {
+                    github_issue.updateIssue(diff_issue.convertToPatchIssue(curr_labels), similar_issue[0]);
                   }
-                  var patch_issue = {
-                      title: diff_issue.title, 
-                      body: diff_issue.comment,
-                      assignee: diff_issue.getAssignee(curr_commit.author.name),
-                      status: diff_issue.status,
-                      labels: curr_labels
-                    };
 
-                  authObj('repos', req.params.user, req.params.repo, 'issues'
-                    , similar_issue[0].number).patch( patch_issue
-                    , function (err, json) {
-                      if (err)
-                        return console.log("Failed to patch issue ", patch_issue, err);
-                      
-                      // if (!err)
-                        // all_issues.push(patch_issue)
-                  });
+                  // add it in as a new comment if previous comments dont have the same body
+                  github_issue.addComment(diff_issue.convertToComment(), similar_issue[0]);
+
                 } else if (diff_issue.isOpen()) {
-                  // we're creating a new issue
-                  var create_issue = {
-                    title: diff_issue.title,
-                    body: diff_issue.comment,
-                    assignee: diff_issue.getAssignee(curr_commit.author.name),
-                    labels: [diff_issue.label]
-                  };
-
-                  authObj('repos', req.params.user, req.params.repo, 'issues').post(
-                    create_issue , function (err, json) {
-                      if (err)
-                        return console.log("Failed to create issue ", create_issue, err, json);
-                      // if (!err)
-                        // all_issues.push(create_issue);
-                  });
-                }
+                  github_issue.create_issue(diff_issue.convertToNewIssue());
+                } 
               });
             });
           });
