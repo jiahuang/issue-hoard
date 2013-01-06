@@ -1,9 +1,6 @@
-var ISSUES = {
-  TODO: { 
-    issue_type: '',
-    issue_name: '',
-    issue_comment: ''
-  }
-};
+var ISSUES = [
+  'TODO',
+  'FIXME'
+];
 
 module.exports = ISSUES;
