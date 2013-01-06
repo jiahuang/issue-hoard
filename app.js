@@ -115,9 +115,9 @@ app.post('/users/:user/:repo/push', function (req, res) {
       // weird github issue? payload is sent as a string
       var body = JSON.parse(req.body.payload);
       commits = body.commits;
-      console.log("size of the push", body);
     } 
 
+    console.log("got hit");
     if (!commits || commits.length < 1)
       return res.send('Post body did not contain a list of commits. Is this webhook set up correctly?');
     
@@ -129,37 +129,42 @@ app.post('/users/:user/:repo/push', function (req, res) {
     // get the list of all issues
     github_issue.getAllIssues(function (curr_issues) {
       // get the list of all commit diffs
-      github_repo.getCommitDiffs(function (diff) {
-        console.log("repo commit compare: "+curr_commit.parents[0].sha+'...'+curr_commit.sha );
+      github_repo.getCommitDiffs(commits, function (diff) {
+        // console.log("repo commit compare: "+curr_commit.parents[0].sha+'...'+curr_commit.sha );
 
         diff.files.forEach(function (file){
           all_issues = DIFF_PARSER.parseLines(file.patch, all_issues);
         });
+        console.log("all issues", all_issues);
+        all_issues.forEach(function (diff_issue, diff_number) {
+          // sometimes this messes up due to callback indexes
+          if (commits[diff_number])
+            diff_issue.setAssignee(commits[diff_number].author.name);
+          else
+            diff_issue.setAssignee(commits[0].author.name);
 
-        all_issues.forEach(function (diff_issue) {
           var isSimilar = diff_issue.isSimilarTo(curr_issues);
-          diff_issue.setAssignee(curr_commit.author.name);
-
+          // console.log("similar issue", isSimilar);
           if (isSimilar.similar) {
             // we have multiple issues with the same name or this isn't changing anything about the issue
             // uhhh no clue which one to edit, let's just skip it
             if (isSimilar.multiple) // diff_issue.equals(similar_issue[0])
               return console.log("donno what to do with this issue", diff_issue);
             
-            similar_issue[0].labels = similar_issue[0].labels.map(function (label) { return label.name; });
-
             // if there is a different assignee, label, or status, patch the issue
-            if (diff_issue.isIssueUpdate(similar_issue[0])) {
-              github_issue.updateIssue(diff_issue.convertToPatchIssue(similar_issue[0].labels), similar_issue[0]);
+            if (diff_issue.isIssueUpdate(isSimilar.issue)) {
+              github_issue.updateIssue(diff_issue.convertToPatchIssue(isSimilar.issue), isSimilar.issue.number);
             }
 
             // add it in as a new comment if previous comments dont have the same body
-            github_issue.addComment(diff_issue.convertToComment(), similar_issue[0]);
+            github_issue.addComment(diff_issue.convertToComment(), isSimilar.issue, isSimilar.issue.number);
 
           } else if (diff_issue.isOpen()) {
-            github_issue.create_issue(diff_issue.convertToNewIssue());
-          } 
+            github_issue.createIssue(diff_issue.convertToNewIssue());
+          }
         });
+        
+        all_issues = [];
       });
     });
   });
