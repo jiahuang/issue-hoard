@@ -22,15 +22,19 @@ DiffIssue.prototype.equals = function (diffObj) {
 }
 
 DiffIssue.prototype.isSimilarTo = function (issues) {
+  var that = this;
+
   var similar_issues = issues.filter(function (curr_issue){
-    if (diff_issue.title.toUpper() == new String(curr_issue.title).toUpper())
+    if (that.title.toUpperCase() == new String(curr_issue.title).toUpperCase())
       return curr_issue;
   });
+
   if (similar_issues.length > 1)
-    return {multiple: true, similar: true};
+    return {multiple: true, similar: true, issue: null};
   else if (similar_issues.length == 1)
-    return {multiple: false, similar: true};
-  return { multiple:false, similar: false};
+    return {multiple: false, similar: true, issue: similar_issues[0]};
+
+  return { multiple:false, similar: false, issue: null};
 }
 
 DiffIssue.prototype.isOpen = function () {
@@ -44,10 +48,14 @@ DiffIssue.prototype.setAssignee = function (assignee) {
 }
 
 DiffIssue.prototype.isIssueUpdate = function (diffObj) {
-  if (this.assignee != diffObj.assignee.login || 
-    diffObj.labels.indexOf(this.label) == -1 || 
+  var that = this;
+  var filter = diffObj.labels.filter(function (label) {
+    if (new String(label.name).toUpperCase() === that.label.toUpperCase()) return label;
+  });
+  if (filter.length == 0)
+    return true;
+  if (this.assignee != diffObj.assignee.login ||
     diffObj.state != this.status ) {
-    // console.log("issue update from", this.label, this.status, this.assignee, diffObj.labels, diffObj.state, diffObj.assignee.login);
     return true;
   }
   return false;
@@ -72,7 +80,10 @@ DiffIssue.prototype.convertToComment = function () {
   return { body: this.body};
 };
 
-DiffIssue.prototype.convertToPatchIssue = function (curr_labels) {
+DiffIssue.prototype.convertToPatchIssue = function (curr_issue) {
+  var curr_labels = curr_issue.labels.map(function (label){
+    return label.name;
+  });
   if (curr_labels.indexOf(this.label) == -1) {
     curr_labels.push(this.label);
   }

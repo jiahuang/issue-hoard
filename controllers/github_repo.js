@@ -5,22 +5,23 @@ var GithubRepo = function (authObj, user, repo) {
 }
 
 GithubRepo.prototype.getCommitDiffs = function(commits, next){
+  var that = this;
   commits.forEach(function (commit, index) {
     // get this entire commit
     // GET /repos/:owner/:repo/git/commits/:sha
-    this.authObj('repos', this.user, this.repo, 'git'
+    that.authObj('repos', that.user, that.repo, 'git'
       , 'commits', commit.id).get(function (err, curr_commit) {
       if (err)
-        return console.log("Failed to get repos/"+this.user+"/"+this.repo+'/git/commits/'+commit.id);
+        return console.log("Failed to get repos/"+that.user+"/"+that.repo+'/git/commits/'+commit.id);
       console.log("repo");
 
         // get the diff between this commit and its parent
-      this.authObj('repos', this.user, this.repo, 'compare', 
+      that.authObj('repos', that.user, that.repo, 'compare', 
         curr_commit.parents[0].sha+'...'+curr_commit.sha).get(function (err, diff) { 
         if (err)
-          return console.log("Failed to get repos/"+this.user+"/"+this.repo+'/compare/'+curr_commit.parents[0].sha+'...'+curr_commit.sha);
+          return console.log("Failed to get repos/"+that.user+"/"+that.repo+'/compare/'+curr_commit.parents[0].sha+'...'+curr_commit.sha);
         
-        if (typeof(next) == 'function') next(diff);
+        if (typeof(next) == 'function') next(diff, index);
       });
     });
   });
@@ -43,20 +44,22 @@ GithubRepo.prototype.createWebHook = function (repoName, url) {
       if (new String(hook.url).toUpperCase() == url.toUpperCase())
         return hook.url;
     });
-    
-    if (hook_filter.length < 1) {
-      this.authObj('repos', this.user, repoName, 'hooks').post({
-        name: "web",
-        active: "true",
-        events: ["push"],
-        config: {
-          url: url,
-          content_type: "json"
-        }
-      }, function (err, json) {
-        if (err) return console.error('Error creating push webhook:', err, json);
-      });
-    }
+
+    // a webhook already exists, skip
+    if (hook_filter.length > 0)
+      return;
+
+    this.authObj('repos', this.user, repoName, 'hooks').post({
+      name: "web",
+      active: "true",
+      events: ["push"],
+      config: {
+        url: url,
+        content_type: "json"
+      }
+    }, function (err, json) {
+      if (err) return console.error('Error creating push webhook:', err, json);
+    });
   });
 }
 

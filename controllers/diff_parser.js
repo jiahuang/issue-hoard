@@ -34,7 +34,7 @@ DiffParser.prototype.parseLine = function (line) {
   return new DiffIssue({ 
     label: issueType, 
     title: issueName, 
-    asignee: assignee, 
+    assignee: assignee, 
     body: comment,
     status: noDiff.exec(line)[0][0] == '+'? 'open': 'closed'
   });

@@ -5,7 +5,7 @@ var GithubIssue = function (authObj, user, repo) {
 };
 
 GithubIssue.prototype.updateIssue = function (issue, issueNumber) {
-  console.log("patching this issue", issue);
+  console.log("patching this issue", issue, issueNumber);
   this.authObj('repos', this.user, this.repo, 'issues'
     , issueNumber.toString()).patch( issue
     , function (err, json) {
@@ -24,6 +24,7 @@ GithubIssue.prototype.createIssue = function (issue) {
 };
 
 GithubIssue.prototype.createComment = function (comment, issueNumber) {
+  console.log("creating a comment ", comment, issueNumber);
   this.authObj('repos', this.user, this.repo, 'issues'
     , issueNumber.toString(), 'comments').post(comment
     , function (err, json) {
@@ -41,22 +42,26 @@ GithubIssue.prototype.getComments = function (issueNumber, next) {
   });
 };
 
-GithubIssue.prototype.addComment = function (comment, issueNumber) {
+GithubIssue.prototype.addComment = function (comment, issue, issueNumber) {
+  var that = this;
   this.getComments(issueNumber, function (comments) {
     var filtered_comments = comments.filter(function (curr_comment) {
       if (comment.body.toUpperCase() === (new String(curr_comment.body).toUpperCase())) 
         return comment;
     });
 
-    if (filtered_comments.length == 0) {
-      console.log("adding in another comment", { body: diff_issue.body });
-      this.createComment(comment, issueNumber);
+    if (filtered_comments.length == 0 && (new String(issue.body).toUpperCase()) != comment.body.toUpperCase()) {
+      // console.log("adding in another comment ", comment);
+      that.createComment(comment, issueNumber);
     }
   });
 };
 
 GithubIssue.prototype.getAllIssues = function (next) {
   this.authObj('repos', this.user, this.repo, 'issues').get(function (err, issues) {
+    if (err)
+      console.log("Failed to get all issues for repo", this.repo, err, json)
+    
     if (typeof(next) == 'function') next(issues);
   });
 };
