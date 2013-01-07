@@ -54,19 +54,22 @@ app.use(oauth.middleware(function (req, res, next) {
   user('user').get(function (err, json) {
 
     req.session.userinfo = json;
-    cols.users.update({
+    cols.users.findAndModify({
       user: req.session.userinfo.login
+    }, [['_id','asc']], { 
+      $set : {
+        user: req.session.userinfo.login,
+        token: req.session['github.com:oauthAccessToken'],
+        update_time: new Date()
+      }
     }, {
-      user: req.session.userinfo.login,
-      token: req.session['github.com:oauthAccessToken'],
-      update_time: new Date()
-    }, {
-      upsert: true
-    }, function (err, docs) {
+      upsert: true,
+      new: true
+    }, function (err, user) {
       if (err) 
-        console.log("Error upserting user into db", req.session.userinfo);
-
-      return res.redirect('/users/'+req.session.userinfo.login);
+        return console.log("Error upserting user into db", err);
+      req.session.userinfo = user;
+      return res.redirect('/users/'+req.session.userinfo.user);
     });
   });
 }));
@@ -78,45 +81,66 @@ app.get('/', function (req, res) {
     return res.render("index.ejs", {user: null});
     // return res.send('who are you? <a href="/login/">Better login buddy</a>', 404);
   }
-  return res.render("index.ejs", {user: req.session.userinfo.login});
-  // return res.send('Hi there ' + req.session.userinfo.login, 200);
+  return res.render("index.ejs", {user: req.session.userinfo.user});
+  // return res.send('Hi there ' + req.session.userinfo.user, 200);
 });
 
 app.get('/users/:user', function (req, res) {
-  var user = req.session.userinfo.login;
+  var user = req.session.userinfo.user;
+  var authObj = oauth.session(req);
+  if (!authObj)
+    return res.render("index.ejs", {user: null})
+
   var github_repo = new GithubRepo(authObj, user);
-  
   github_repo.getPublicRepos(function (repos) {
-    return res.render("index.ejs", {user: user, repos: repos});
+    return res.render("user.ejs", {user: user, repos: repos});
   });
 });
 
-app.post('/users/:user/hooks', function (req, res) {
-  var user = req.session.userinfo.login;
-  if (user != req.params.user) return res.send("Unauthorized", 404);
+// create webhook for repos
+app.post('/hooks/:user/:repo', function (req, res) {
+  var authObj = oauth.session(req);
   
-  // find that user's oauth token
-  cols.users.findOne({
-    user: user
-  }, function (err, userObj) {
-    if (err)
-      return res.send('Could not find user')
-    var authObj = oauth.restore({oauthAccessToken: userObj.token});
-    var github_repo = new GithubRepo(authObj, userObj.name);
+  if (!authObj || req.session.userinfo.user != req.params.user)
+    res.send("Unauthorized", 401);
 
-    // create webhooks for repos
-    var repos = req.body.repos;
-    var pending = repos.length;
-    var results = {added: [], err: []};
-    repos.forEach(function (repo, index) {
+  var github_repo = new GithubRepo(authObj, req.session.userinfo.user);
 
-      github_repo.createWebHook(repo.name, process.env.HOST_URL, function (err, json) {
-        if (!err) results.added.push(repo.name);
-        else results.err.push(repo.name);
+  github_repo.createWebHook(req.params.repo, process.env.HOST_URL, function (err, json) {
+    // add it to our db
+    cols.users.update({
+      user: req.session.userinfo.user
+    }, {
+      $push : {repos: {name: req.params.repo, added: new Date()}}
+    }, function (db_err) {
+      if (err || db_err)
+        return res.send("Error", err, db_err, 500);
 
-        if (!--pending) return res.send(results);
-      });
+      return res.send("Added hook for "+req.params.repo, 200);
+    });
+  });
+});
+
+// delete webhook for repo
+app.delete('/hooks/:user/:repo', function(req, res) {
+  var authObj = oauth.session(req);
+  
+  if (!authObj || req.session.userinfo.user != req.params.user)
+    res.send("Unauthorized", 401);
+
+  var github_repo = new GithubRepo(authObj, req.session.userinfo.user);
+
+  github_repo.deleteWebHook(req.params.repo, process.env.HOST_URL, function (err, json) {
+    // remove it from our db
+    cols.users.update({
+      user: req.session.userinfo.user
+    }, {
+      $push : {repos: {name: req.params.repo, added: new Date()}}
+    }, function (db_err) {
+      if (err || db_err)
+        return res.send("Error", err, db_err, 500);
       
+      return res.send("Deleted hook for "+req.params.repo, 200);
     });
   });
 });

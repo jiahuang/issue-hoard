@@ -61,16 +61,40 @@ GithubRepo.prototype.createWebHook = function (repoName, host_url, next) {
         content_type: "json"
       }
     }, function (err, json) {
-      if (typeof(next) != 'function') return;
-
-      if (err) {
-        next(err, json);
-        return console.error('Error creating push webhook:', err, json);
-      }
-
-      if (typeof(next) == 'function') next(false, json);
+      if (err) return console.error('Error creating push webhook:', err, json);
       console.log("created webhook for this repo", repoName);
+      
+      if (typeof(next) != 'function') return;
+      if (typeof(next) == 'function') next(false, json);
     });
+  });
+}
+
+GithubRepo.prototype.deleteWebhook = function (repoName, host_url, next) {
+  var url = host_url+'/users/'+this.user+'/'+repoName+'/push';
+  this.authObj('repos', this.user, repoName, 'hooks').get(
+    function (err, hooks){
+    // look for the correct hook url(s)
+    var hooks = hooks.filter(function (hook) {
+      if (new String(hook.config.url).toUpperCase() == url.toUpperCase())
+        return hook;
+    });
+
+    // a webhook doesnt exist, skip
+    if (hooks.length < 1)
+      return console.log("webhook for this repo doesn't exist", repoName);
+
+    hooks.forEach(function (hook) {
+      console.log("trying to delete webhook for ", repoName, hook);
+      // DELETE /repos/:owner/:repo/hooks/:id
+      this.authObj('repos', this.user, repoName, 'hooks', hook.id.toString()).del(function (err, json) {
+        if (err) return console.error('Error deleting webhook:', err, json);
+        console.log("deleted webhook for this repo", repoName);
+
+        if (typeof(next) != 'function') return;
+        if (typeof(next) == 'function') next(false, json);
+      });
+    })
   });
 }
 
