@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Issue Hoard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Issue tracking within your code">
+
+    <!-- Le styles -->
+    <link href="/stylesheets/bootstrap.min.css" rel="stylesheet">
+    <style type="text/css">
+      body {
+        padding-top: 20px;
+        padding-bottom: 40px;
+      }
+
+      /* Custom container */
+      .container-narrow {
+        margin: 0 auto;
+        max-width: 900px;
+      }
+      .container-narrow > hr {
+        margin: 30px 0;
+      }
+
+      /* Main marketing message and sign up button */
+      .jumbotron {
+        margin: 60px 0;
+        text-align: center;
+      }
+      .jumbotron h1 {
+        font-size: 72px;
+        line-height: 1;
+      }
+      .jumbotron .btn {
+        font-size: 21px;
+        padding: 14px 24px;
+      }
+
+      /* Supporting marketing content */
+      .marketing {
+        margin: 60px 0;
+      }
+      .marketing p + h4 {
+        margin-top: 28px;
+      }
+
+      .code {
+        font-family: Courier, Monospace;
+        padding-left: 20px;
+        background-color: #A7A7A7;
+        color: #494949;
+        font-weight: bold;
+      }
+    </style>
+
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+
+    <div class="container-narrow">
+
+      <div class="jumbotron">
+        <h1>Issue Hoard</h1>
+        <p class="lead">issue tracking within your code</p>
+        <a class="btn btn-large btn-success" href="/login">Sign up with Github</a>
+      </div>
+
+      <hr>
+
+      <div class="row-fluid marketing">
+        
+        <div class="span12">
+          <h4>Open up new issues by commenting</h4>
+          <p>It might even be fixed someday</p>
+          <p>It turns a comment</p> 
+          <p class="code">// TODO (fix route): everything is broken. fix it</p>
+          
+          <p>Into an open issue on github</p>
+          <img src="/images/open_issue.png" alt="open issue"/>
+          <br/>
+          <br/>
+          <p>You can even assign things to other people. Delegation! Wow, your career is looking bright now!</p>
+          <p class="code">// TODO (fix route @slacs): everything is broken. fix it</p>
+          <img src="/images/assign_issue.png" alt="assign issue"/>
+          <br/>
+          <br/>
+
+          <h4>Update current issues</h4>
+          <p>Make it look like you're working by updating the comment</p>
+          <p class="code">// TODO (fix route @jiahuang): added the route</p>
+          <p>So your teammates can see this</p>
+          <img src="/images/comment_issue.png" alt="comment on issue"/>
+
+          <br/>
+          <br/>
+          <h4>Issues autoclose</h4>
+          <p>Hide your mistakes from the public eye by removing the comment. This will also close issue on Github, but will not fix any of your code.</p>
+        </div>
+      </div>
+
+      <hr>
+
+      <div class="footer">
+        <a href="https://github.com/jiahuang/issue-hoard">is something terrible? fork this on github</a>
+      </div>
+
+    </div> <!-- /container -->
+
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="/javascripts/bootstrap.min.js"></script>
+  </body>
+</html>
