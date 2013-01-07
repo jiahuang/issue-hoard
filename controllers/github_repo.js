@@ -36,19 +36,22 @@ GithubRepo.prototype.getPublicRepos = function (next) {
   });
 }
 
-GithubRepo.prototype.createWebHook = function (repoName, url) {
+GithubRepo.prototype.createWebHook = function (repoName, host_url, next) {
   // check current webhooks, if it's not already there, create it
+  var url = host_url+'/users/'+this.user+'/'+repoName+'/push';
   this.authObj('repos', this.user, repoName, 'hooks').get(
     function (err, hooks){
-    var hook_filter = hooks.filter(function (hook) { 
-      if (new String(hook.url).toUpperCase() == url.toUpperCase())
-        return hook.url;
+    var hook_filter = hooks.filter(function (hook) {
+      console.log(hook.config.url);
+      if (new String(hook.config.url).toUpperCase() == url.toUpperCase())
+        return hook.config.url;
     });
 
     // a webhook already exists, skip
     if (hook_filter.length > 0)
-      return;
+      return console.log("webhook for this repo already exists", repoName);
 
+    console.log("trying to create webhook for ", repoName, url);
     this.authObj('repos', this.user, repoName, 'hooks').post({
       name: "web",
       active: "true",
@@ -58,7 +61,15 @@ GithubRepo.prototype.createWebHook = function (repoName, url) {
         content_type: "json"
       }
     }, function (err, json) {
-      if (err) return console.error('Error creating push webhook:', err, json);
+      if (typeof(next) != 'function') return;
+
+      if (err) {
+        next(err, json);
+        return console.error('Error creating push webhook:', err, json);
+      }
+
+      if (typeof(next) == 'function') next(false, json);
+      console.log("created webhook for this repo", repoName);
     });
   });
 }
