@@ -34,9 +34,7 @@ app.configure('development', function(){
   app.use(express.errorHandler());
 });
 
-app.use(express.session({
-  secret: process.env.SECRET
-}));
+app.use(express.session({ secret: process.env.SECRET}));
 
 // Has to go after express.session
 app.use(app.router);
@@ -45,8 +43,7 @@ var github = rem.connect('github.com', 3.0).configure({
   key: process.env.GH_KEY,
   secret: process.env.GH_SECRET
 });
-
-var oauth = rem.oauth(github, "http://"+process.env.HOST_URL+"/oauth/callback/");
+var oauth = rem.oauth(github, process.env.HOST_URL+"/oauth/callback/");
 
 // The oauth middleware intercepts the callback url that we set when we
 // created the oauth middleware.
@@ -57,7 +54,6 @@ app.use(oauth.middleware(function (req, res, next) {
   user('user').get(function (err, json) {
 
     req.session.userinfo = json;
-    // console.log(req.session['github.com:oauthAccessToken']);
     cols.users.update({
       user: req.session.userinfo.login
     }, {
@@ -68,29 +64,61 @@ app.use(oauth.middleware(function (req, res, next) {
       upsert: true
     }, function (err, docs) {
       if (err) 
-        console.log("Error inserting user into db", req.session.userinfo);
+        console.log("Error upserting user into db", req.session.userinfo);
 
-      return res.redirect('/');
+      return res.redirect('/users/'+req.session.userinfo.login);
     });
   });
 }));
 
 app.get('/', function (req, res) {
 
-  var user = oauth.session(req);
-  if (!user) {
-    return res.send('who are you? <a href="/login/">Better login buddy</a>', 404);
+  var authObj = oauth.session(req);
+  if (!authObj) {
+    return res.render("index.ejs", {user: null});
+    // return res.send('who are you? <a href="/login/">Better login buddy</a>', 404);
   }
+  return res.render("index.ejs", {user: req.session.userinfo.login});
+  // return res.send('Hi there ' + req.session.userinfo.login, 200);
+});
 
-  var github_repo = new GithubRepo(user, req.session.userinfo.login);
+app.get('/users/:user', function (req, res) {
+  var user = req.session.userinfo.login;
+  var github_repo = new GithubRepo(authObj, user);
   
-  github_repo.getPublicRepos(function (repo) {
+  github_repo.getPublicRepos(function (repos) {
+    return res.render("index.ejs", {user: user, repos: repos});
+  });
+});
+
+app.post('/users/:user/hooks', function (req, res) {
+  var user = req.session.userinfo.login;
+  if (user != req.params.user) return res.send("Unauthorized", 404);
+  
+  // find that user's oauth token
+  cols.users.findOne({
+    user: user
+  }, function (err, userObj) {
+    if (err)
+      return res.send('Could not find user')
+    var authObj = oauth.restore({oauthAccessToken: userObj.token});
+    var github_repo = new GithubRepo(authObj, userObj.name);
+
+    // create webhooks for repos
+    var repos = req.body.repos;
+    var pending = repos.length;
+    var results = {added: [], err: []};
     repos.forEach(function (repo, index) {
-      // github_repo.createWebHook(repo.name, process.env.url+'/users/'+req.session.userinfo.login+'/push');
+
+      github_repo.createWebHook(repo.name, process.env.HOST_URL, function (err, json) {
+        if (!err) results.added.push(repo.name);
+        else results.err.push(repo.name);
+
+        if (!--pending) return res.send(results);
+      });
+      
     });
   });
-  
-  return res.send('Hi there ' + req.session.userinfo.login, 200);
 });
 
 app.get('/login', function (req, res) {
@@ -100,6 +128,14 @@ app.get('/login', function (req, res) {
     console.log(url);
     res.redirect(url);
   });
+});
+
+app.get('/logout', function (req, res) {
+  if (req.session) {
+    req.session.userinfo = null;
+    req.session.destroy(function() {});
+  }
+  res.redirect('/');
 });
 
 app.post('/users/:user/:repo/push', function (req, res) {
