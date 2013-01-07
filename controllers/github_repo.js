@@ -37,6 +37,7 @@ GithubRepo.prototype.getPublicRepos = function (next) {
 }
 
 GithubRepo.prototype.createWebHook = function (repoName, host_url, next) {
+  var that = this;
   // check current webhooks, if it's not already there, create it
   var url = host_url+'/users/'+this.user+'/'+repoName+'/push';
   this.authObj('repos', this.user, repoName, 'hooks').get(
@@ -52,7 +53,7 @@ GithubRepo.prototype.createWebHook = function (repoName, host_url, next) {
       return console.log("webhook for this repo already exists", repoName);
 
     console.log("trying to create webhook for ", repoName, url);
-    this.authObj('repos', this.user, repoName, 'hooks').post({
+    that.authObj('repos', that.user, repoName, 'hooks').post({
       name: "web",
       active: "true",
       events: ["push"],
@@ -65,12 +66,14 @@ GithubRepo.prototype.createWebHook = function (repoName, host_url, next) {
       console.log("created webhook for this repo", repoName);
       
       if (typeof(next) != 'function') return;
+      console.log("calling function");
       if (typeof(next) == 'function') next(false, json);
     });
   });
 }
 
-GithubRepo.prototype.deleteWebhook = function (repoName, host_url, next) {
+GithubRepo.prototype.deleteWebHook = function (repoName, host_url, next) {
+  var that = this;
   var url = host_url+'/users/'+this.user+'/'+repoName+'/push';
   this.authObj('repos', this.user, repoName, 'hooks').get(
     function (err, hooks){
@@ -87,12 +90,15 @@ GithubRepo.prototype.deleteWebhook = function (repoName, host_url, next) {
     hooks.forEach(function (hook) {
       console.log("trying to delete webhook for ", repoName, hook);
       // DELETE /repos/:owner/:repo/hooks/:id
-      this.authObj('repos', this.user, repoName, 'hooks', hook.id.toString()).del(function (err, json) {
+      console.log('repos', that.user, repoName, 'hooks'
+        , hook.id.toString());
+      that.authObj.stream('repos', that.user, repoName, 'hooks'
+        , hook.id.toString()).del(function (err) {
         if (err) return console.error('Error deleting webhook:', err, json);
         console.log("deleted webhook for this repo", repoName);
 
         if (typeof(next) != 'function') return;
-        if (typeof(next) == 'function') next(false, json);
+        if (typeof(next) == 'function') next(false);
       });
     })
   });

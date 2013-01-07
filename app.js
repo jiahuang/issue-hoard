@@ -86,6 +86,9 @@ app.get('/', function (req, res) {
 });
 
 app.get('/users/:user', function (req, res) {
+  if (!req.session.userinfo)
+    return res.render("index.ejs", {user: null})
+
   var user = req.session.userinfo.user;
   var authObj = oauth.session(req);
   if (!authObj)
@@ -93,6 +96,16 @@ app.get('/users/:user', function (req, res) {
 
   var github_repo = new GithubRepo(authObj, user);
   github_repo.getPublicRepos(function (repos) {
+    // add tracked/untracked statuses to repo data
+    var tracked_repos = req.session.userinfo.repos.map(function (repo) {
+      return repo.name;
+    });
+    repos.map(function (repo) {
+      if (tracked_repos.indexOf(repo.name) != -1 ) repo.tracked = true;
+      else repo.tracked = false;
+      return repo;
+    });
+    console.log(tracked_repos);
     return res.render("user.ejs", {user: user, repos: repos});
   });
 });
@@ -107,12 +120,14 @@ app.post('/hooks/:user/:repo', function (req, res) {
   var github_repo = new GithubRepo(authObj, req.session.userinfo.user);
 
   github_repo.createWebHook(req.params.repo, process.env.HOST_URL, function (err, json) {
+    console.log("gonna add it to our db");
     // add it to our db
     cols.users.update({
       user: req.session.userinfo.user
     }, {
       $push : {repos: {name: req.params.repo, added: new Date()}}
     }, function (db_err) {
+      console.log("sending results");
       if (err || db_err)
         return res.send("Error", err, db_err, 500);
 
@@ -130,12 +145,12 @@ app.delete('/hooks/:user/:repo', function(req, res) {
 
   var github_repo = new GithubRepo(authObj, req.session.userinfo.user);
 
-  github_repo.deleteWebHook(req.params.repo, process.env.HOST_URL, function (err, json) {
+  github_repo.deleteWebHook(req.params.repo, process.env.HOST_URL, function (err) {
     // remove it from our db
     cols.users.update({
       user: req.session.userinfo.user
     }, {
-      $push : {repos: {name: req.params.repo, added: new Date()}}
+      $pull : {repos: {name: req.params.repo, added: new Date()}}
     }, function (db_err) {
       if (err || db_err)
         return res.send("Error", err, db_err, 500);
