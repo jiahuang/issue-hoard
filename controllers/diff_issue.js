@@ -68,12 +68,8 @@ DiffIssue.prototype.isSameBody = function (str) {
 }
 
 DiffIssue.prototype.convertToNewIssue = function () {
-  return {
-    title: this.title,
-    body: this.body,
-    assignee: this.assignee,
-    labels: [this.label]
-  };
+  this.labels = [this.label];
+  return this;
 };
 
 DiffIssue.prototype.convertToComment = function () {

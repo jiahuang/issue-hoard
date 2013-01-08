@@ -52,8 +52,8 @@ app.use(oauth.middleware(function (req, res, next) {
 
   var user = oauth.session(req);
   user('user').get(function (err, json) {
-
     req.session.userinfo = json;
+
     cols.users.findAndModify({
       user: req.session.userinfo.login
     }, [['_id','asc']], { 
@@ -96,10 +96,14 @@ app.get('/users/:user', function (req, res) {
 
   var github_repo = new GithubRepo(authObj, user);
   github_repo.getPublicRepos(function (repos) {
-    // add tracked/untracked statuses to repo data
-    var tracked_repos = req.session.userinfo.repos.map(function (repo) {
-      return repo.name;
-    });
+
+    var tracked_repos = [];
+    if (req.session.userinfo.repos) {
+      // add tracked/untracked statuses to repo data
+      tracked_repos = req.session.userinfo.repos.map(function (repo) {
+        return repo.name;
+      });
+    }
     repos.map(function (repo) {
       if (tracked_repos.indexOf(repo.name) != -1 ) repo.tracked = true;
       else repo.tracked = false;
@@ -205,37 +209,31 @@ app.post('/users/:user/:repo/push', function (req, res) {
     github_issue.getAllIssues(function (curr_issues) {
       // get the list of all commit diffs
       github_repo.getCommitDiffs(commits, function (diff) {
-        // console.log("repo commit compare: "+curr_commit.parents[0].sha+'...'+curr_commit.sha );
 
         diff.files.forEach(function (file){
           all_issues = DIFF_PARSER.parseLines(file.patch, all_issues);
         });
         console.log("all issues", all_issues);
         all_issues.forEach(function (diff_issue, diff_number) {
-          // sometimes this messes up due to callback indexes
-          if (commits[diff_number])
-            diff_issue.setAssignee(commits[diff_number].author.name);
-          else
-            diff_issue.setAssignee(commits[0].author.name);
-
+          diff_issue.setAssignee(commits[diff_number].author.name);
+          
           var isSimilar = diff_issue.isSimilarTo(curr_issues);
-          // console.log("similar issue", isSimilar);
+          // we have multiple issues with the same name or this isn't changing anything about the issue
+          // uhhh no clue which one to edit, let's just skip it
+          if (isSimilar.multiple) // diff_issue.equals(similar_issue[0])
+            return console.log("donno what to do with this issue", diff_issue);
+
           if (isSimilar.similar) {
-            // we have multiple issues with the same name or this isn't changing anything about the issue
-            // uhhh no clue which one to edit, let's just skip it
-            if (isSimilar.multiple) // diff_issue.equals(similar_issue[0])
-              return console.log("donno what to do with this issue", diff_issue);
-            
             // if there is a different assignee, label, or status, patch the issue
-            if (diff_issue.isIssueUpdate(isSimilar.issue)) {
+            if (diff_issue.isIssueUpdate(isSimilar.issue))
               github_issue.updateIssue(diff_issue.convertToPatchIssue(isSimilar.issue), isSimilar.issue.number);
-            }
 
             // add it in as a new comment if previous comments dont have the same body
-            github_issue.addComment(diff_issue.convertToComment(), isSimilar.issue, isSimilar.issue.number);
+            if (!diff_issue.isSameBody(isSimilar.issue.body))
+              github_issue.addComment(diff_issue.convertToComment(), isSimilar.issue, isSimilar.issue.number);
 
           } else if (diff_issue.isOpen()) {
-            github_issue.createIssue(diff_issue.convertToNewIssue());
+            github_issue.createIssue(diff_issue.convertToNewIssue(), true);
           }
         });
         

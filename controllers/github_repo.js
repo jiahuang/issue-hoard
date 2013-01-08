@@ -6,14 +6,19 @@ var GithubRepo = function (authObj, user, repo) {
 
 GithubRepo.prototype.getCommitDiffs = function(commits, next){
   var that = this;
+
+  // order commits by date
+  commits.sort(function(a, b) { return new Date(a.timestamp) > new Date(b.timestamp) ? 1 : -1; });
   commits.forEach(function (commit, index) {
+    // console.log("commit details", commit.id);
+
     // get this entire commit
     // GET /repos/:owner/:repo/git/commits/:sha
     that.authObj('repos', that.user, that.repo, 'git'
       , 'commits', commit.id).get(function (err, curr_commit) {
+
       if (err)
         return console.log("Failed to get repos/"+that.user+"/"+that.repo+'/git/commits/'+commit.id);
-      console.log("repo");
 
         // get the diff between this commit and its parent
       that.authObj('repos', that.user, that.repo, 'compare', 
