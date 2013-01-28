@@ -131,7 +131,7 @@ app.post('/hooks/:user/:repo', function (req, res) {
 
   var github_repo = new GithubRepo(authObj, req.session.userinfo.user);
 
-  github_repo.createWebHook(req.params.repo, process.env.HOST_URL, function (err, json) {
+  github_repo.createWebHook(req.params.repo, process.env.HOOK_URL, function (err, json) {
     console.log("gonna add it to our db");
     // add it to our db
     cols.users.update({
@@ -157,7 +157,7 @@ app.delete('/hooks/:user/:repo', function(req, res) {
 
   var github_repo = new GithubRepo(authObj, req.session.userinfo.user);
 
-  github_repo.deleteWebHook(req.params.repo, process.env.HOST_URL, function (err) {
+  github_repo.deleteWebHook(req.params.repo, process.env.HOOK_URL, function (err) {
     console.log("trying to delete");
     // remove it from our db
     cols.users.update({
@@ -276,7 +276,7 @@ function setupMongo(next) {
 setupMongo(function () {
   // Start server.
   console.log("port", process.env.PORT);
-  var port = parseInt(process.env.PORT || 3000);
+  var port = 6000;//parseInt(process.env.PORT || 3000);
   app.listen(port);
   console.log('Server listening on port', port);
 });
