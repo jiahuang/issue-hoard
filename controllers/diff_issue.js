@@ -54,7 +54,7 @@ DiffIssue.prototype.isIssueUpdate = function (diffObj) {
   });
   if (filter.length == 0)
     return true;
-  if (this.assignee != diffObj.assignee.login ||
+  if (!diffObj.assignee && this.assignee || this.assignee != diffObj.assignee.login ||
     diffObj.state != this.status ) {
     return true;
   }
