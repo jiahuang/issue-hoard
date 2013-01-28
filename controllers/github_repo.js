@@ -54,8 +54,10 @@ GithubRepo.prototype.createWebHook = function (repoName, host_url, next) {
     });
 
     // a webhook already exists, skip
-    if (hook_filter.length > 0)
+    if (hook_filter.length > 0) {
+      if (typeof(next) == 'function') next(false);
       return console.log("webhook for this repo already exists", repoName);
+    }
 
     console.log("trying to create webhook for ", repoName, url);
     that.authObj('repos', that.user, repoName, 'hooks').post({
@@ -89,8 +91,10 @@ GithubRepo.prototype.deleteWebHook = function (repoName, host_url, next) {
     });
 
     // a webhook doesnt exist, skip
-    if (hooks.length < 1)
+    if (hooks.length < 1) {
+      if (typeof(next) == 'function') next(false);
       return console.log("webhook for this repo doesn't exist", repoName);
+    }
 
     hooks.forEach(function (hook) {
       console.log("trying to delete webhook for ", repoName, hook);

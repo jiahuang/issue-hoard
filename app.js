@@ -89,28 +89,36 @@ app.get('/users/:user', function (req, res) {
   if (!req.session.userinfo)
     return res.render("index.ejs", {user: null})
 
-  var user = req.session.userinfo.user;
+  // var user = req.session.userinfo.user;
   var authObj = oauth.session(req);
   if (!authObj)
     return res.render("index.ejs", {user: null})
 
-  var github_repo = new GithubRepo(authObj, user);
+  var github_repo = new GithubRepo(authObj, req.session.userinfo.user);
+
   github_repo.getPublicRepos(function (repos) {
 
-    var tracked_repos = [];
-    if (req.session.userinfo.repos) {
-      // add tracked/untracked statuses to repo data
-      tracked_repos = req.session.userinfo.repos.map(function (repo) {
-        return repo.name;
+    // regrab the user in case they tracked/untracked a repo
+    cols.users.findOne({user: req.session.userinfo.user}
+      , function (err, user) {
+      req.session.userinfo = user;
+      // console.log("user", req.session.userinfo.user);
+
+      var tracked_repos = [];
+      if (req.session.userinfo.repos) {
+        // add tracked/untracked statuses to repo data
+        tracked_repos = req.session.userinfo.repos.map(function (repo) {
+          return repo.name;
+        });
+      }
+      repos.map(function (repo) {
+        if (tracked_repos.indexOf(repo.name) != -1 ) repo.tracked = true;
+        else repo.tracked = false;
+        return repo;
       });
-    }
-    repos.map(function (repo) {
-      if (tracked_repos.indexOf(repo.name) != -1 ) repo.tracked = true;
-      else repo.tracked = false;
-      return repo;
+      console.log(tracked_repos);
+      return res.render("user.ejs", {user: req.session.userinfo.user, repos: repos});
     });
-    console.log(tracked_repos);
-    return res.render("user.ejs", {user: user, repos: repos});
   });
 });
 
@@ -150,11 +158,12 @@ app.delete('/hooks/:user/:repo', function(req, res) {
   var github_repo = new GithubRepo(authObj, req.session.userinfo.user);
 
   github_repo.deleteWebHook(req.params.repo, process.env.HOST_URL, function (err) {
+    console.log("trying to delete");
     // remove it from our db
     cols.users.update({
       user: req.session.userinfo.user
     }, {
-      $pull : {repos: {name: req.params.repo, added: new Date()}}
+      $pull : {repos: {name: req.params.repo}}
     }, function (db_err) {
       if (err || db_err)
         return res.send("Error", err, db_err, 500);
@@ -266,6 +275,7 @@ function setupMongo(next) {
 
 setupMongo(function () {
   // Start server.
+  console.log("port", process.env.PORT);
   var port = parseInt(process.env.PORT || 3000);
   app.listen(port);
   console.log('Server listening on port', port);
