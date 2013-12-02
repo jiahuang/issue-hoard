@@ -1,5 +1,5 @@
 #Issue Hoard
-Issue tracking from commit diffs. Checkout [www.issuehoard.com](www.issuehoard.com)
+Issue tracking from commit diffs. Checkout [www.issuehoard.com](http://issuehoard.com)
 
 Needs the following oauth credientials from Github to run
 
